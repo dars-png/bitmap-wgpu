@@ -65,6 +65,7 @@ impl BitmapFont {
     }
 
     pub fn image(&self) -> &RgbaImage { &self.desc.img }
+    pub fn char_gap_x_pixels(&self) -> u32 { self.desc.char_gap_x_pixels }
 
     pub fn char_aspect(&self) -> f32 {
         // Aspect ratio

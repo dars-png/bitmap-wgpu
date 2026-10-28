@@ -60,7 +60,7 @@ impl ApplicationHandler for App {
         ));
 
         let mut text = BitmapRenderer::new(&gfx, &font);
-        text.set_text(&gfx, &font, "AA");
+        text.set_text(&gfx, &font, "AA", 0.2);
 
         self.last_frame = Instant::now();
         window.request_redraw();

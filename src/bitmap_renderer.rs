@@ -189,15 +189,18 @@ impl BitmapRenderer {
     Self { pipeline, vbuf, ibuf, ubuf, bind_group, index_count: 0 }
     }
 
-    pub fn set_text(&mut self, gfx_instance: &GFX, font: &BitmapFont, text: &str) {
+    pub fn set_text(&mut self, gfx_instance: &GFX, font: &BitmapFont, text: &str, gap: f32) {
         let aspect = font.char_aspect();
+        let advance = aspect + gap;
         let chars: Vec<char> = text.chars().take(MAX_CHARS).collect();
-        let x_start = -(chars.len() as f32) * aspect * 0.5;
+
+        let total = chars.len() as f32 * advance - gap;
+        let x_start = -total * 0.5;
 
         let mut verts = Vec::with_capacity(chars.len() * 4);
         for (i, &c) in chars.iter().enumerate() {
             let uv = font.get_char_uv(c);
-            let x0 = x_start + i as f32 * aspect;
+            let x0 = x_start + i as f32 * advance;
             let x1 = x0 + aspect;
 
             verts.push(Vertex { pos: [x0, -0.5, 0.0], uv: [uv.u0, uv.v1] });
