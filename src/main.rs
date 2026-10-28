@@ -1,11 +1,12 @@
 // Homebrew
 mod gfx;
 use gfx::GFX;
-mod scene;
-use scene::Scene;
+
 mod bitmap;
 use bitmap::{BitmapDescriptor, BitmapFont};
+
 mod bitmap_renderer;
+use bitmap_renderer::BitmapRenderer;
 
 // Actual Libs
 use std::{sync::Arc, time::Instant};
@@ -17,13 +18,11 @@ use winit::{
     window::{Window, WindowId},
 };
 
-use crate::bitmap_renderer::BitmapRenderer;
-
 struct State {
     window: Arc<Window>,
     gfx: GFX,
-    scene: Scene,
     font: BitmapFont,
+    text: BitmapRenderer,
 }
 
 struct App {
@@ -43,14 +42,11 @@ impl ApplicationHandler for App {
                 .unwrap(),
         );
 
-        let gfx = pollster::block_on(GFX::new(window.clone()));
+        let gfx = pollster::block_on(GFX::new(window.clone(), 0.2, 0.3, 0.3, 1.0));
 
         let img = image::load_from_memory(include_bytes!("../assets/font1.png"))
             .unwrap()
             .to_rgba8();
-
-        let (w, h) = img.dimensions();
-        let scene = Scene::new(&gfx, &img, w, h);
 
         let font = BitmapFont::new(BitmapDescriptor::new(
             img,
@@ -63,11 +59,12 @@ impl ApplicationHandler for App {
             "ABCDEFGHIJKLMNOPQRSTUVWXYZ".to_string(),
         ));
 
-        let bmp_renderer = BitmapRenderer::new(&gfx, &font);
+        let mut text = BitmapRenderer::new(&gfx, &font);
+        text.set_text(&gfx, &font, "AA");
 
         self.last_frame = Instant::now();
         window.request_redraw();
-        self.state = Some(State { window, gfx, scene, font });
+        self.state = Some(State { window, gfx, font, text });
     }
 
     fn window_event(
@@ -84,10 +81,7 @@ impl ApplicationHandler for App {
 
             WindowEvent::Resized(size) => {
                 if size.width > 0 && size.height > 0 {
-                    state.gfx.config.width = size.width;
-                    state.gfx.config.height = size.height;
-                    state.gfx.surface.configure(&state.gfx.device, &state.gfx.config);
-                    state.scene.resize(&state.gfx);
+                    state.gfx.resize(size.width, size.height);
                 }
             }
 
@@ -97,17 +91,14 @@ impl ApplicationHandler for App {
                 self.last_frame = now;
                 self.angle += 1.0 * dt;
 
-                // For testing bc i don't have bmp-rust yet
-                // All of this is still just testing wgpu
-                let uv = state.font.get_char_uv('A');
-                let rect_uv = [
-                    [uv.u0, uv.v1],
-                    [uv.u1, uv.v1],
-                    [uv.u1, uv.v0],
-                    [uv.u0, uv.v0],
-                ];
-                state.scene.render(&state.gfx, self.angle, rect_uv);
+                let proj = glam::camera::rh::proj::directx::perspective(
+                    45f32.to_radians(), state.gfx.aspect(), 0.1, 100.0);
+                let view = glam::camera::rh::view::look_at_mat4(
+                    glam::Vec3::new(0.0, 0.0, 3.0), glam::Vec3::ZERO, glam::Vec3::Y);
+                let mvp = proj * view * glam::Mat4::from_rotation_y(self.angle);
 
+                state.text.set_transform(&state.gfx, mvp, [1.0, 0.4, 0.1, 1.0]);
+                state.gfx.render(|pass| state.text.draw(pass));
                 state.window.request_redraw();
             }
             _ => {}

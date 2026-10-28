@@ -1,4 +1,7 @@
-struct Uniforms { mvp: mat4x4<f32> };
+struct Uniforms { 
+    mvp: mat4x4<f32>,
+    color: vec4<f32>,
+};
 
 @group(0) @binding(0) var<uniform> u: Uniforms;
 @group(0) @binding(1) var tex: texture_2d<f32>;
@@ -19,5 +22,6 @@ fn vs_main(@location(0) pos: vec3<f32>, @location(1) uv: vec2<f32>) ->VsOut {
 
 @fragment
 fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
-    return textureSample(tex, smp, in.uv);
+    let t = textureSample(tex, smp, in.uv);
+    return vec4<f32>(t.rgb * u.color.rgb * t.a * u.color.a, t.a);
 }
