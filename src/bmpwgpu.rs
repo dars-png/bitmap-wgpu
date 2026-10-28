@@ -1,7 +1,7 @@
 use wgpu::util::DeviceExt;
 
-use bitmap::BitmapFont;
-use gfx::{DEPTH_FORMAT, GFX};
+use crate::bitmap::BitmapFont;
+use crate::gfx::{DEPTH_FORMAT, GFX};
 
 const MAX_CHARS: usize = 256;
 
@@ -31,8 +31,10 @@ pub struct BitmapRenderer {
 impl BitmapRenderer {
     pub fn new(gfx_instance: &gfx::GFX, font: &BitmapFont) -> Self {
         let device = &gfx_instance.device;
+        let img = font.image();
+        let (w, h) = img.dimensions();
 
-        let size = wgpu::Extent3d { width: img_w, height: img_h, depth_or_array_layers: 1 };
+        let size = wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 };
         let texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("tex"),
             size,

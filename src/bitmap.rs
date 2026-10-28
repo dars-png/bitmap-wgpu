@@ -64,6 +64,13 @@ impl BitmapFont {
         Self { desc, img_width_chars, img_height_chars, char_jump_tbl }
     }
 
+    pub fn image(&self) -> &RgbaImage { &self.desc.img }
+
+    pub fn char_aspect(&self) -> f32 {
+        // Aspect ratio
+        self.desc.char_width_pixels as f32 / self.desc.char_height_pixels as f32
+    }
+
     fn build_char_jump_tbl(desc: &BitmapDescriptor) -> Vec<u32> {
         // guh syntax
         let mut jump_tbl: Vec<u32> = vec![0; 128];
