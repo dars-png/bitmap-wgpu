@@ -5,6 +5,7 @@ mod scene;
 use scene::Scene;
 mod bitmap;
 use bitmap::{BitmapDescriptor, BitmapFont};
+mod bitmap_renderer;
 
 // Actual Libs
 use std::{sync::Arc, time::Instant};
@@ -15,6 +16,8 @@ use winit::{
     event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
     window::{Window, WindowId},
 };
+
+use crate::bitmap_renderer::BitmapRenderer;
 
 struct State {
     window: Arc<Window>,
@@ -50,8 +53,7 @@ impl ApplicationHandler for App {
         let scene = Scene::new(&gfx, &img, w, h);
 
         let font = BitmapFont::new(BitmapDescriptor::new(
-            img.width(),
-            img.height(),
+            img,
             3,
             5,
             1,
@@ -60,6 +62,8 @@ impl ApplicationHandler for App {
             false,
             "ABCDEFGHIJKLMNOPQRSTUVWXYZ".to_string(),
         ));
+
+        let bmp_renderer = BitmapRenderer::new(&gfx, &font);
 
         self.last_frame = Instant::now();
         window.request_redraw();

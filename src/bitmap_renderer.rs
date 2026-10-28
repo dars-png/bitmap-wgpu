@@ -29,7 +29,7 @@ pub struct BitmapRenderer {
 }
 
 impl BitmapRenderer {
-    pub fn new(gfx_instance: &gfx::GFX, font: &BitmapFont) -> Self {
+    pub fn new(gfx_instance: &GFX, font: &BitmapFont) -> Self {
         let device = &gfx_instance.device;
         let img = font.image();
         let (w, h) = img.dimensions();
@@ -48,11 +48,11 @@ impl BitmapRenderer {
 
         gfx_instance.queue.write_texture(
             texture.as_image_copy(), 
-            rgba, 
+            img.as_raw(), 
             wgpu::TexelCopyBufferLayout { 
                 offset: 0, 
-                bytes_per_row: Some(4 * img_w), 
-                rows_per_image: Some(img_h), 
+                bytes_per_row: Some(4 * w), 
+                rows_per_image: Some(h), 
             }, 
             size,
         );
@@ -64,21 +64,29 @@ impl BitmapRenderer {
             ..Default::default()
         });
 
-        let vbuf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Quad Verts"),
-            contents: bytemuck::cast_slice(&QUAD),
+        let vbuf = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Char Verts"),
+            size: (MAX_CHARS * 4 * std::mem::size_of::<Vertex>()) as u64,
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
         });
 
+        let indices: Vec<u16> = (0..MAX_CHARS as u16)
+            .flat_map(|g| {
+                let b = g * 4;
+                [b, b + 1, b + 2, b, b + 2, b + 3]
+            })
+            .collect();
+
         let ibuf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Quad Indices"),
-            contents: bytemuck::cast_slice(&INDICES),
+            label: Some("Char Indices"),
+            contents: bytemuck::cast_slice(&indices),
             usage: wgpu::BufferUsages::INDEX,
         });
 
         let ubuf = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("MVP"),
-            size: 64,
+            label: Some("Bitmap Font Uniform"),
+            size: std::mem::size_of::<Uniforms>() as u64,
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
@@ -88,7 +96,7 @@ impl BitmapRenderer {
             entries: &[
                 wgpu::BindGroupLayoutEntry {
                     binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX,
+                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Buffer { 
                         ty: wgpu::BufferBindingType::Uniform, 
                         has_dynamic_offset: false, 
@@ -139,7 +147,7 @@ impl BitmapRenderer {
     };
 
     let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor { 
-        label: Some("Pipeline"), 
+        label: Some("Bitmat Font Pipeline"), 
         layout: Some(&layout), 
         vertex: wgpu::VertexState { 
             module: &shader, 
@@ -158,7 +166,7 @@ impl BitmapRenderer {
         }, 
         depth_stencil: Some(wgpu::DepthStencilState { 
             format: DEPTH_FORMAT, 
-            depth_write_enabled: Some(true),
+            depth_write_enabled: Some(false),
             depth_compare: Some(wgpu::CompareFunction::LessEqual),
             stencil: Default::default(), 
             bias: Default::default() 
@@ -178,8 +186,43 @@ impl BitmapRenderer {
         cache: None,
     });
 
-    let depth_view = make_depth_view(device, gfx_instance.config.width, gfx_instance.config.height);
-    Self { pipeline, vbuf, ibuf, ubuf, bind_group, depth_view }
+    Self { pipeline, vbuf, ibuf, ubuf, bind_group, index_count: 0 }
     }
 
+    pub fn set_text(&mut self, gfx_instance: &GFX, font: &BitmapFont, text: &str) {
+        let aspect = font.char_aspect();
+        let chars: Vec<char> = text.chars().take(MAX_CHARS).collect();
+        let x_start = -(chars.len() as f32) * aspect * 0.5;
+
+        let mut verts = Vec::with_capacity(chars.len() * 4);
+        for (i, &c) in chars.iter().enumerate() {
+            let uv = font.get_char_uv(c);
+            let x0 = x_start + i as f32 * aspect;
+            let x1 = x0 + aspect;
+
+            verts.push(Vertex { pos: [x0, -0.5, 0.0], uv: [uv.u0, uv.v1] });
+            verts.push(Vertex { pos: [x1, -0.5, 0.0], uv: [uv.u1, uv.v1] });
+            verts.push(Vertex { pos: [x1,  0.5, 0.0], uv: [uv.u1, uv.v0] });
+            verts.push(Vertex { pos: [x0,  0.5, 0.0], uv: [uv.u0, uv.v0] });
+        }
+        if !verts.is_empty() {
+            gfx_instance.queue.write_buffer(&self.vbuf, 0, bytemuck::cast_slice(&verts));
+        }
+        self.index_count = (chars.len() * 6) as u32;
+    }
+
+    pub fn set_transform(&self, gfx_instance: &GFX, mvp: glam::Mat4, color: [f32; 4]) {
+        let u = Uniforms { mvp: mvp.to_cols_array(), color };
+        gfx_instance.queue.write_buffer(&self.ubuf, 0, bytemuck::bytes_of(&u));
+    }
+
+    pub fn draw(&self, pass: &mut wgpu::RenderPass<'_>) {
+        if self.index_count == 0 { return; }
+
+        pass.set_pipeline(&self.pipeline);
+        pass.set_bind_group(0, &self.bind_group, &[]);
+        pass.set_vertex_buffer(0, self.vbuf.slice(..));
+        pass.set_index_buffer(self.ibuf.slice(..), wgpu::IndexFormat::Uint16);
+        pass.draw_indexed(0..self.index_count, 0, 0..1);
+    }
 }
