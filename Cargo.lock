@@ -243,6 +243,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3ded4057c258ba199e2d26386d3af3780957ecaee6c4ef4041c6b4b8b97c0b06"
 
 [[package]]
+name = "bitmap-wgpu"
+version = "1.0.0"
+dependencies = [
+ "bytemuck",
+ "glam",
+ "image",
+ "pollster",
+ "wgpu",
+ "winit",
+]
+
+[[package]]
 name = "bitstream-io"
 version = "4.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -267,18 +279,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cdeb9d870516001442e364c5220d3574d2da8dc765554b4a617230d33fa58ef5"
 dependencies = [
  "objc2 0.6.5",
-]
-
-[[package]]
-name = "bmp-rust"
-version = "0.1.0"
-dependencies = [
- "bytemuck",
- "glam",
- "image",
- "pollster",
- "wgpu",
- "winit",
 ]
 
 [[package]]
