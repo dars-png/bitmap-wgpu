@@ -56,7 +56,7 @@ impl ApplicationHandler for App {
             0,
             true,
             false,
-            "ABCDEFGHIJKLMNOPQRSTUVWXYZ".to_string(),
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".to_string(),
         ));
 
         let mut text = BitmapRenderer::new(&gfx, &font);
@@ -91,11 +91,20 @@ impl ApplicationHandler for App {
                 self.last_frame = now;
                 self.angle += 1.0 * dt;
 
+                let fps = ((1.0 / dt) as u16).to_string();
+
+                /*
                 let proj = glam::camera::rh::proj::directx::perspective(
                     45f32.to_radians(), state.gfx.aspect(), 0.1, 100.0);
                 let view = glam::camera::rh::view::look_at_mat4(
                     glam::Vec3::new(0.0, 0.0, 3.0), glam::Vec3::ZERO, glam::Vec3::Y);
-                let mvp = proj * view * glam::Mat4::from_rotation_y(self.angle);
+                //let mvp = proj * view * glam::Mat4::from_rotation_y(self.angle);
+                let mvp = proj * view * glam::Mat4::from_translation(glam::Vec3::new(-1.5, 0.0, 0.0));
+                */
+                //println!("{}", fps);
+                state.text.set_text(&state.gfx, &state.font, &fps, 0.1);
+
+                let mvp = screen_mvp(&state.gfx, 30.0, 10.0, 24.0);
 
                 state.text.set_transform(&state.gfx, mvp, [1.0, 0.4, 0.1, 1.0]);
                 state.gfx.render(|pass| state.text.draw(pass));
@@ -105,6 +114,21 @@ impl ApplicationHandler for App {
         }
     }
 }
+
+
+pub fn screen_mvp(gfx: &GFX, x: f32, y: f32, height_px: f32) -> glam::Mat4 {
+    use glam::{Mat4, Vec3};
+    let (w, h) = (gfx.config.width as f32, gfx.config.height as f32);
+
+    let ortho = Mat4::from_translation(Vec3::new(-1.0, 1.0, 0.0))
+        * Mat4::from_scale(Vec3::new(2.0 / w, -2.0 / h, 1.0));
+
+    let model = Mat4::from_translation(Vec3::new(x, y + height_px * 0.5, 0.0))
+        * Mat4::from_scale(Vec3::new(height_px, -height_px, 1.0));
+
+    ortho * model
+}
+
 
 pub fn main() {
     let event_loop = EventLoop::new().unwrap();
