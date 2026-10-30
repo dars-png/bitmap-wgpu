@@ -9,13 +9,10 @@ mod bitmap_renderer;
 use bitmap_renderer::BitmapRenderer;
 
 // Actual Libs
-use std::{sync::Arc, time::Instant};
+use std::{intrinsics::copy, sync::Arc, time::Instant};
 
 use winit::{
-    application::ApplicationHandler,
-    event::WindowEvent,
-    event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
-    window::{Window, WindowId},
+    application::ApplicationHandler, event::{KeyEvent, WindowEvent}, event_loop::{ActiveEventLoop, ControlFlow, EventLoop}, window::{Window, WindowId},
 };
 
 struct State {
@@ -76,12 +73,41 @@ impl ApplicationHandler for App {
     {
         let Some(state) = self.state.as_mut() else { return };
 
+        use winit::event::{ElementState, KeyEvent};
+        use winit::keyboard::{KeyCode, PhysicalKey};
+
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
 
             WindowEvent::Resized(size) => {
                 if size.width > 0 && size.height > 0 {
                     state.gfx.resize(size.width, size.height);
+                }
+            }
+
+            WindowEvent::KeyboardInput { 
+                event: KeyEvent { physical_key: PhysicalKey::Code(code), state: key_state, repeat: false, text: key_text, ..},
+                ..
+            } => {
+                if key_state == ElementState::Pressed {
+                    match code {
+                        KeyCode::Escape => event_loop.exit(),
+                        _ => {},
+                    }
+
+                    if let Some(t) = &key_text {
+                        let mut curr = state.text.get_text().clone();
+
+                        if code == KeyCode::Backspace {
+                            curr.pop();
+                        } else {
+                            for c in t.chars() {
+                                curr.push(c);
+                            }
+                        }
+                        println!("{}", curr);
+                        state.text.set_text(&state.gfx, &state.font, &curr, 0.1);
+                    }
                 }
             }
 
@@ -102,7 +128,7 @@ impl ApplicationHandler for App {
                 let mvp = proj * view * glam::Mat4::from_translation(glam::Vec3::new(-1.5, 0.0, 0.0));
                 */
                 //println!("{}", fps);
-                state.text.set_text(&state.gfx, &state.font, &fps, 0.1);
+                //state.text.set_text(&state.gfx, &state.font, &fps, 0.1);
 
                 let mvp = screen_mvp(&state.gfx, 30.0, 10.0, 24.0);
 

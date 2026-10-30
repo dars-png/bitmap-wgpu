@@ -26,6 +26,7 @@ pub struct BitmapRenderer {
     ubuf: wgpu::Buffer,
     bind_group: wgpu::BindGroup,
     index_count: u32,
+    current_text: String,
 }
 
 impl BitmapRenderer {
@@ -186,16 +187,19 @@ impl BitmapRenderer {
         cache: None,
     });
 
-    Self { pipeline, vbuf, ibuf, ubuf, bind_group, index_count: 0 }
+    Self { pipeline, vbuf, ibuf, ubuf, bind_group, index_count: 0, current_text: String::new() }
     }
 
     pub fn set_text(&mut self, gfx_instance: &GFX, font: &BitmapFont, text: &str, gap: f32) {
+        self.current_text = text.to_string();
+
         let aspect = font.char_aspect();
         let advance = aspect + gap;
         let chars: Vec<char> = text.chars().take(MAX_CHARS).collect();
 
         let total = chars.len() as f32 * advance - gap;
-        let x_start = -total * 0.5;
+        //let x_start = -total * 0.5;
+        let x_start = 0.0;
 
         let mut verts = Vec::with_capacity(chars.len() * 4);
         for (i, &c) in chars.iter().enumerate() {
@@ -227,5 +231,9 @@ impl BitmapRenderer {
         pass.set_vertex_buffer(0, self.vbuf.slice(..));
         pass.set_index_buffer(self.ibuf.slice(..), wgpu::IndexFormat::Uint16);
         pass.draw_indexed(0..self.index_count, 0, 0..1);
+    }
+
+    pub fn get_text(&self) -> &String {
+        &self.current_text
     }
 }
